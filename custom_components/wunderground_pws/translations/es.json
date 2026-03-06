@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Estación Meteorológica Personal de Weather Underground",
+        "description": "Ingresa el ID de tu estación Wunderground (ej: IPUNIL11). La clave API se descubrirá automáticamente desde el panel de Wunderground.",
+        "data": {
+          "station_id": "ID de Estación"
+        },
+        "data_description": {
+          "station_id": "El ID de tu estación PWS (ej: IPUNIL11). Encuéntralo en https://www.wunderground.com/dashboard/pws/TU_ESTACION"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-autenticar Weather Underground PWS",
+        "description": "Haz clic en Enviar para refrescar la clave API de la estación {station_id}."
+      }
+    },
+    "error": {
+      "cannot_connect": "No se puede conectar a Weather Underground. Verifica tu conexión a internet.",
+      "api_key_not_found": "No se pudo encontrar la clave API en el panel de Wunderground. El ID de estación puede ser inválido o la estructura de la página puede haber cambiado.",
+      "unknown": "Error inesperado. Revisa los registros de Home Assistant para más detalles."
+    },
+    "abort": {
+      "already_configured": "Esta estación meteorológica ya está configurada.",
+      "reauth_successful": "La re-autenticación fue exitosa."
+    }
+  }
+}

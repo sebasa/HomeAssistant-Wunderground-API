@@ -1,0 +1,12 @@
+{
+  "domain": "wunderground_pws",
+  "name": "Weather Underground PWS",
+  "version": "1.0.0",
+  "documentation": "https://github.com/yourusername/wunderground_pws",
+  "issue_tracker": "https://github.com/yourusername/wunderground_pws/issues",
+  "dependencies": [],
+  "codeowners": ["@yourusername"],
+  "requirements": ["aiohttp>=3.8.0"],
+  "iot_class": "cloud_polling",
+  "config_flow": true
+}
