@@ -1,9 +1,5 @@
 {
   "name": "Weather Underground PWS",
-  "content_in_root": false,
   "render_readme": true,
-  "filename": "wunderground_pws.zip",
-  "country": [],
-  "homeassistant": "2023.1.0",
-  "category": "integration"
+  "homeassistant": "2023.1.0"
 }
