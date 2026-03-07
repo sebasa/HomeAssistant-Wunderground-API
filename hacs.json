@@ -1,5 +1,5 @@
 {
-  "name": "Weather Underground PWS",
+  "name": "Weather Underground External API",
   "render_readme": true,
   "homeassistant": "2023.1.0"
 }

@@ -1,4 +1,4 @@
-# Weather Underground PWS - Home Assistant Integration
+# Weather Underground External API - Home Assistant Integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
@@ -20,8 +20,8 @@ A Home Assistant custom integration that automatically discovers your Weather Un
 ## Installation via HACS
 
 1. In HACS, go to **Integrations → ⋮ → Custom repositories**
-2. Add `https://github.com/yourusername/wunderground_pws` with category **Integration**
-3. Search for **Weather Underground PWS** and install
+2. Add `https://github.com/sebasa/HomeAssistant-Wunderground-API` with category **Dashboard**
+3. Search for **Weather Underground API** and install
 4. Restart Home Assistant
 
 ### Manual Installation
@@ -33,7 +33,7 @@ Copy the `custom_components/wunderground_pws` folder into your HA `config/custom
 ## Configuration
 
 1. Go to **Settings → Devices & Services → + Add Integration**
-2. Search for **Weather Underground PWS**
+2. Search for **Weather Underground API**
 3. Enter your station ID (e.g. `IPUNIL11`)
 4. The integration will automatically find the API key and validate your station
 

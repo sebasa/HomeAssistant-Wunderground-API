@@ -1,0 +1,12 @@
+{
+  "domain": "wunderground_api",
+  "name": "Weather Underground External API",
+  "version": "1.1.0",
+  "documentation": "https://github.com/sebasa/HomeAssistant-Wunderground-API",
+  "issue_tracker": "https://github.com/sebasa/HomeAssistant-Wunderground-API/issues",
+  "dependencies": [],
+  "codeowners": ["@sebasa"],
+  "requirements": ["aiohttp>=3.8.0"],
+  "iot_class": "cloud_polling",
+  "config_flow": true
+}
