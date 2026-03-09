@@ -6,9 +6,8 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.aiohttp_client as ha_aiohttp
 
 from .api import (
@@ -29,23 +28,16 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
-    """
-    Validate user input: scrape API key and test connection.
-    Returns a dict with the discovered api_key and station info.
-    """
+    """Validate user input: scrape API key and test connection."""
     session = ha_aiohttp.async_get_clientsession(hass)
     station_id = data[CONF_STATION_ID].strip().upper()
 
     client = WundergroundPWSClient(station_id=station_id, session=session)
 
-    # Step 1: Discover API key from dashboard page
     api_key = await client.discover_api_key()
     client.api_key = api_key
 
-    # Step 2: Validate by fetching actual data
     observation = await client.get_observations()
-
-    station_name = observation.get("stationID", station_id)
     neighborhood = observation.get("neighborhood", "")
 
     return {
@@ -55,14 +47,14 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     }
 
 
-class WundergroundPWSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class WundergroundPWSConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Weather Underground PWS."""
 
     VERSION = 1
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
 
@@ -80,7 +72,6 @@ class WundergroundPWSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception during config flow")
                 errors["base"] = "unknown"
             else:
-                # Prevent duplicate entries for same station
                 await self.async_set_unique_id(info["station_id"])
                 self._abort_if_unique_id_configured()
 
@@ -96,22 +87,22 @@ class WundergroundPWSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=STEP_USER_DATA_SCHEMA,
             errors=errors,
-            description_placeholders={
-                "example": "IPUNIL11",
-                "url": "https://www.wunderground.com/dashboard/pws/YOURSTATION",
-            },
         )
 
-    async def async_step_reauth(self, entry_data: dict[str, Any]) -> FlowResult:
-        """Handle re-authentication (API key refresh)."""
+    async def async_step_reauth(
+        self, entry_data: dict[str, Any]
+    ) -> ConfigFlowResult:
+        """Handle re-authentication."""
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
+    ) -> ConfigFlowResult:
         """Re-scrape a fresh API key."""
         errors: dict[str, str] = {}
-        reauth_entry = self._get_reauth_entry()
+        reauth_entry: ConfigEntry = self.hass.config_entries.async_get_entry(
+            self.context["entry_id"]
+        )
 
         if user_input is not None:
             try:
@@ -125,16 +116,15 @@ class WundergroundPWSConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception:  # pylint: disable=broad-except
                 errors["base"] = "unknown"
             else:
-                return self.async_update_reload_and_abort(
+                self.hass.config_entries.async_update_entry(
                     reauth_entry,
-                    data_updates={CONF_API_KEY: info["api_key"]},
+                    data={**reauth_entry.data, CONF_API_KEY: info["api_key"]},
                 )
+                await self.hass.config_entries.async_reload(reauth_entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
 
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=vol.Schema({}),
             errors=errors,
-            description_placeholders={
-                "station_id": reauth_entry.data[CONF_STATION_ID],
-            },
         )

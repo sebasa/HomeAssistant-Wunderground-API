@@ -3,16 +3,16 @@
     "step": {
       "user": {
         "title": "Weather Underground Personal Weather Station",
-        "description": "Enter your Wunderground station ID (e.g. IPUNIL11). The API key will be discovered automatically from the Wunderground dashboard.",
+        "description": "Enter your Wunderground station ID (e.g. IBUENO86).",
         "data": {
           "station_id": "Station ID"
         },
         "data_description": {
-          "station_id": "Your PWS station ID (e.g. IPUNIL11). Find it at https://www.wunderground.com/dashboard/pws/YOUR_STATION_ID"
+          "station_id": "Your PWS station ID (e.g. IBUENO86)."
         }
       },
       "reauth_confirm": {
-        "title": "Re-authenticate Weather Underground PWS",
+        "title": "Re-authenticate Weather Underground API",
         "description": "Click Submit to refresh the API key for station {station_id}."
       }
     },

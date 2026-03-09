@@ -1,6 +1,6 @@
 """Constants for the Weather Underground PWS integration."""
 
-DOMAIN = "wunderground_pws"
+DOMAIN = "wunderground_api"
 PLATFORMS = ["sensor", "weather"]
 
 # Configuration

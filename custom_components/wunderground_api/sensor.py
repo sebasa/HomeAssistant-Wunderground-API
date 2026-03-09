@@ -5,9 +5,7 @@ import logging
 from typing import Any
 
 from homeassistant.components.sensor import (
-    SensorDeviceClass,
     SensorEntity,
-    SensorEntityDescription,
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -22,13 +20,14 @@ from .coordinator import WundergroundPWSCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
-def _get_nested(data: dict, path: list[str]) -> Any:
-    """Safely retrieve a nested value from a dict using a list of keys."""
-    for key in path:
-        if not isinstance(data, dict):
+def _get_value(data: dict, path: list[str]) -> Any:
+    """Safely retrieve a nested value from a dict."""
+    current = data
+    for key in path[1:]:  # skip "observation" prefix
+        if not isinstance(current, dict):
             return None
-        data = data.get(key)
-    return data
+        current = current.get(key)
+    return current
 
 
 async def async_setup_entry(
@@ -40,16 +39,14 @@ async def async_setup_entry(
     coordinator: WundergroundPWSCoordinator = hass.data[DOMAIN][entry.entry_id]
     station_id = entry.data[CONF_STATION_ID]
 
-    entities = [
-        WundergroundPWSSensor(coordinator, station_id, sensor_key, sensor_def)
-        for sensor_key, sensor_def in SENSOR_TYPES.items()
-    ]
-
-    async_add_entities(entities)
+    async_add_entities([
+        WundergroundPWSSensor(coordinator, station_id, key, defn)
+        for key, defn in SENSOR_TYPES.items()
+    ])
 
 
 class WundergroundPWSSensor(CoordinatorEntity[WundergroundPWSCoordinator], SensorEntity):
-    """Representation of a Weather Underground PWS sensor."""
+    """A single Weather Underground PWS sensor."""
 
     _attr_has_entity_name = True
 
@@ -72,15 +69,15 @@ class WundergroundPWSSensor(CoordinatorEntity[WundergroundPWSCoordinator], Senso
         self._attr_native_unit_of_measurement = sensor_def["unit"]
         self._attr_icon = sensor_def["icon"]
 
-        if sensor_def["device_class"]:
+        if sensor_def.get("device_class"):
             self._attr_device_class = sensor_def["device_class"]
 
-        if sensor_def["state_class"]:
+        if sensor_def.get("state_class"):
             self._attr_state_class = sensor_def["state_class"]
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, station_id)},
-            name=f"Weather Underground PWS {station_id}",
+            name=f"WU PWS {station_id}",
             manufacturer="Weather Underground",
             model="Personal Weather Station",
             configuration_url=f"https://www.wunderground.com/dashboard/pws/{station_id}",
@@ -89,15 +86,17 @@ class WundergroundPWSSensor(CoordinatorEntity[WundergroundPWSCoordinator], Senso
     @property
     def native_value(self) -> Any:
         """Return the current sensor value."""
-        if self.coordinator.data is None:
+        if not self.coordinator.data:
             return None
 
-        value = _get_nested(self.coordinator.data, self._data_path[1:])  # skip "observation"
+        # Try metric sub-object first
+        metric = self.coordinator.data.get("metric", {}) or {}
+        leaf_key = self._data_path[-1]
 
-        if value is None:
-            # Try from root (non-metric fields like humidity, winddir, uv, solarRadiation)
-            root_key = self._data_path[-1]
-            value = self.coordinator.data.get(root_key)
+        if "metric" in self._data_path:
+            value = metric.get(leaf_key)
+        else:
+            value = self.coordinator.data.get(leaf_key)
 
         if isinstance(value, float):
             return round(value, 2)
@@ -106,10 +105,9 @@ class WundergroundPWSSensor(CoordinatorEntity[WundergroundPWSCoordinator], Senso
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional attributes."""
-        if self.coordinator.data is None:
+        if not self.coordinator.data:
             return {}
         return {
             "station_id": self._station_id,
             "obs_time_utc": self.coordinator.data.get("obsTimeUtc"),
-            "software_type": self.coordinator.data.get("softwareType"),
         }
