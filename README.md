@@ -20,7 +20,7 @@ A Home Assistant custom integration that automatically discovers your Weather Un
 ## Installation via HACS
 
 1. In HACS, go to **Integrations → ⋮ → Custom repositories**
-2. Add `https://github.com/sebasa/HomeAssistant-Wunderground-API` with category **Dashboard**
+2. Add `https://github.com/sebasa/HomeAssistant-Wunderground-API` with category **Integration**
 3. Search for **Weather Underground API** and install
 4. Restart Home Assistant
 
