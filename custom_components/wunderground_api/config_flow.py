@@ -1,8 +1,4 @@
-"""Config flow for Weather Underground PWS integration.
-
-Local patch: optional manual API key for stations when dashboard key
-extraction fails. Compatible with the original integration's data model.
-"""
+"""Config flow for Weather Underground PWS integration."""
 from __future__ import annotations
 
 import logging

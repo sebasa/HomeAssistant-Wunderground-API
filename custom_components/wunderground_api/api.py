@@ -1,14 +1,9 @@
-"""Weather Underground PWS API client.
-
-Local patch: when automatic dashboard key extraction fails, try a public
-website API key published in the MIT-licensed rkuris/wunderground-scraper
-project (https://github.com/rkuris/wunderground-scraper/blob/main/src/main.rs).
-No guarantee the upstream service will continue accepting the key.
-"""
+"""Weather Underground PWS API client."""
 from __future__ import annotations
 
 import logging
 import re
+from urllib.parse import urljoin, urlparse
 from typing import Any
 
 import aiohttp
@@ -17,17 +12,18 @@ from .const import WU_API_URL, WU_DASHBOARD_URL
 
 _LOGGER = logging.getLogger(__name__)
 
-# Public web-client key documented in rkuris/wunderground-scraper (Nov 2026).
-# This can be revoked/rotated by Weather Underground without notice.
-PUBLIC_WEB_API_KEY = "e1f10a1e78da46f5b10a1e78da96f525"
-
+# Candidate patterns from the upstream integration. Never hardcode a service key.
 API_KEY_PATTERNS = [
     re.compile(r'"apiKey"\s*:\s*"([a-zA-Z0-9]{32})"'),
     re.compile(r'apiKey=([a-zA-Z0-9]{32})'),
     re.compile(r'"SUN_API_KEY"\s*:\s*"([a-zA-Z0-9]{32})"'),
-    re.compile(r'TWC_API_KEY\s*=\s*["\']([a-zA-Z0-9]{32})["\']'),
-    re.compile(r'api\.weather\.com[^"\']*apiKey=([a-zA-Z0-9]{32})'),
+    re.compile(r"TWC_API_KEY\s*=\s*[\"']([a-zA-Z0-9]{32})[\"']"),
+    re.compile(r"api\.weather\.com[^\"']*apiKey=([a-zA-Z0-9]{32})"),
+    re.compile(r'"key"\s*:\s*"([a-zA-Z0-9]{32})"'),
 ]
+# Limit asset fetching to known dashboard-controlled hosts, not arbitrary HTML URLs.
+SCRIPT_HOSTS = {"www.wunderground.com", "wunderground.com", "assets.wunderground.com"}
+SCRIPT_SRC = re.compile(r"<script\b[^>]*\bsrc\s*=\s*[\"']([^\"']+)[\"']", re.IGNORECASE)
 
 HEADERS = {
     "User-Agent": (
@@ -76,34 +72,81 @@ class WundergroundPWSClient:
             await self._session.close()
 
     async def discover_api_key(self) -> str:
-        """Try the dashboard's HTML, then a public website key as fallback."""
+        """Discover and verify a dashboard API key from HTML and JS assets.
+
+        Weather Underground can move the web client's key into its bundled
+        JavaScript. No fixed key is shipped or logged by this integration.
+        """
         url = WU_DASHBOARD_URL.format(station_id=self.station_id)
         session = await self._get_session()
         try:
             async with session.get(
-                url, headers=HEADERS, timeout=aiohttp.ClientTimeout(total=15)
+                url, headers=HEADERS, timeout=aiohttp.ClientTimeout(total=30)
             ) as resp:
-                if resp.status == 200:
-                    html = await resp.text()
-                    for pattern in API_KEY_PATTERNS:
-                        match = pattern.search(html)
-                        if match:
-                            _LOGGER.debug(
-                                "Found API key in dashboard for station %s",
-                                self.station_id,
-                            )
-                            return match.group(1)
-                else:
-                    _LOGGER.debug("Dashboard returned HTTP %s", resp.status)
+                if resp.status != 200:
+                    raise WundergroundConnectionError(
+                        f"Dashboard request failed: HTTP {resp.status}"
+                    )
+                html = await resp.text()
         except (aiohttp.ClientError, TimeoutError) as err:
-            _LOGGER.debug("Dashboard key lookup failed: %s", err)
+            raise WundergroundConnectionError(f"Dashboard connection error: {err}") from err
 
-        _LOGGER.warning(
-            "Dashboard API-key discovery failed for station %s; "
-            "trying public web-client API key (not guaranteed to remain valid)",
-            self.station_id,
+        candidates: list[str] = []
+        def collect(source: str) -> None:
+            for pattern in API_KEY_PATTERNS:
+                for match in pattern.finditer(source):
+                    key = match.group(1)
+                    if key not in candidates:
+                        candidates.append(key)
+
+        collect(html)
+        # Read a limited number of scripts as browser dashboards typically issue
+        # observation requests from JavaScript rather than embedding API URLs in HTML.
+        seen: set[str] = set()
+        for src in SCRIPT_SRC.findall(html):
+            script_url = urljoin(url, src.replace("&amp;", "&"))
+            parsed = urlparse(script_url)
+            if (parsed.scheme != "https" or parsed.hostname not in SCRIPT_HOSTS
+                    or script_url in seen):
+                continue
+            seen.add(script_url)
+            if len(seen) > 20:
+                break
+            try:
+                async with session.get(
+                    script_url, headers=HEADERS,
+                    timeout=aiohttp.ClientTimeout(total=12),
+                    allow_redirects=False,
+                ) as resp:
+                    if resp.status != 200:
+                        continue
+                    if int(resp.headers.get("Content-Length", 0)) > 2_000_000:
+                        continue
+                    script = await resp.content.read(2_000_001)
+                    if len(script) > 2_000_000:
+                        continue
+                    collect(script.decode("utf-8", errors="ignore"))
+            except (aiohttp.ClientError, TimeoutError, ValueError):
+                continue
+
+        # Validate candidate keys rather than trusting the first regex match.
+        previous_key = self.api_key
+        try:
+            for candidate in candidates:
+                self.api_key = candidate
+                try:
+                    await self.get_observations()
+                except (WundergroundAuthError, WundergroundApiError):
+                    continue
+                _LOGGER.debug("Validated discovered dashboard key for %s", self.station_id)
+                return candidate
+        finally:
+            self.api_key = previous_key
+
+        raise WundergroundAuthError(
+            "No working API key found in the dashboard or its scripts. "
+            "Enter a valid API key manually."
         )
-        return PUBLIC_WEB_API_KEY
 
     async def get_observations(self) -> dict[str, Any]:
         """Return the newest observations for the specified station."""
