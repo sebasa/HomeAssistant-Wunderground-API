@@ -3,23 +3,31 @@
     "step": {
       "user": {
         "title": "Weather Underground Personal Weather Station",
-        "description": "Enter your Wunderground station ID (e.g. IBUENO86).",
+        "description": "Enter a public station ID. Leave API key blank to try automatic discovery, or supply a working key if discovery fails.",
         "data": {
-          "station_id": "Station ID"
+          "station_id": "Station ID",
+          "api_key": "API key (optional)"
         },
         "data_description": {
-          "station_id": "Your PWS station ID (e.g. IBUENO86)."
+          "station_id": "Public PWS station ID (for example KCOCONIF60)",
+          "api_key": "Optional: a valid Weather Underground API key. Leave blank for automatic detection."
         }
       },
       "reauth_confirm": {
         "title": "Re-authenticate Weather Underground API",
-        "description": "Click Submit to refresh the API key for station {station_id}."
+        "description": "Enter a replacement API key or leave blank to retry automatic discovery.",
+        "data": {
+          "api_key": "API key (optional)"
+        },
+        "data_description": {
+          "api_key": "A valid API key if automatic discovery is failing."
+        }
       }
     },
     "error": {
-      "cannot_connect": "Unable to connect to Weather Underground. Check your internet connection.",
-      "api_key_not_found": "Could not find the API key in the Wunderground dashboard. The station ID may be invalid or the page structure may have changed.",
-      "unknown": "Unexpected error. Check the Home Assistant logs for details."
+      "cannot_connect": "Could not connect to Weather Underground or the API refused the request.",
+      "api_key_not_found": "Automatic key discovery failed or the provided key was rejected. Enter a valid API key to continue.",
+      "unknown": "Weather Underground returned an error. Check the Home Assistant logs."
     },
     "abort": {
       "already_configured": "This weather station is already configured.",
