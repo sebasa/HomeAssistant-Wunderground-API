@@ -9,7 +9,7 @@
           "api_key": "API key (optional)"
         },
         "data_description": {
-          "station_id": "Public PWS station ID (for example KCOCONIF60)",
+          "station_id": "Public PWS station ID (for example KNYNEWYO123)",
           "api_key": "Optional: a valid Weather Underground API key. Leave blank for automatic detection."
         }
       },
